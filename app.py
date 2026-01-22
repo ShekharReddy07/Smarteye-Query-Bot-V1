@@ -1,5 +1,21 @@
 import streamlit as st
 from core.query_runner import handle_question
+from core.db import test_db_connection
+
+print("APP STARTED")
+
+
+# -----------------------------
+# Database connectivity check
+# -----------------------------
+try:
+    test_db_connection("hastings")
+    st.success("✅ Database connected successfully")
+except Exception as e:
+    st.error("❌ Database connection failed")
+    st.code(str(e))
+    st.stop()
+
 
 
 
