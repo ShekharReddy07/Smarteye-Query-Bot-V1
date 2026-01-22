@@ -95,4 +95,5 @@ def handle_question(question: str, mill: str = "hastings"):
 
         return {
             "unsupported": True,
-            "message": "This query is not suppor
+            "message": "This query is not supported yet. We will work on that."
+        }
