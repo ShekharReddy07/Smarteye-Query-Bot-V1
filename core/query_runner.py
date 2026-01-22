@@ -5,6 +5,7 @@ LLM → JSON validation → SQL guard → DB
 Also returns:
 - Executed SQL
 - Parameters
+- Execution confirmation
 (for UI display / SSMS visibility)
 """
 
@@ -21,15 +22,16 @@ def handle_question(question: str, mill: str = "hastings"):
     Full safe pipeline.
     Never raises uncaught exceptions to UI.
 
-    Returns on success:
+    SUCCESS return:
     {
-        "status": "ok",
+        "status": "executed",
         "data": DataFrame,
         "sql": "<executed sql>",
-        "params": [...]
+        "params": [...],
+        "rows": <int>
     }
 
-    Returns on failure:
+    FAILURE return:
     {
         "unsupported": True,
         "message": "This query is not supported yet. We will work on that."
@@ -46,7 +48,7 @@ def handle_question(question: str, mill: str = "hastings"):
         # 3️⃣ Validate LLM JSON structure
         mode = validate_llm_json(llm_result)
 
-        # 🚫 Unsupported query (LLM decided)
+        # 🚫 Unsupported query (LLM decision)
         if mode == "unsupported":
             log_event("unsupported", {
                 "question": question,
@@ -57,33 +59,34 @@ def handle_question(question: str, mill: str = "hastings"):
         sql = llm_result["sql"]
         params = llm_result.get("params", [])
 
-        # 4️⃣ SQL safety guard
+        # 4️⃣ SQL safety guard (READ-ONLY, allowed syntax)
         validate_sql(sql)
 
-        # 5️⃣ Execute query safely
+        # 5️⃣ Execute SQL on database
         conn = get_conn(mill)
         df = pd.read_sql(sql, conn, params=params)
         conn.close()
 
-        # 6️⃣ Log success
-        log_event("success", {
+        # 6️⃣ Log DB execution (PROOF)
+        log_event("sql_executed", {
             "question": question,
             "mill": mill,
             "sql": sql,
             "params": params,
-            "rows": len(df)
+            "rows_returned": len(df)
         })
 
-        # ✅ SUCCESS RETURN (UI + SSMS visibility)
+        # ✅ SUCCESS (this guarantees DB was hit)
         return {
-            "status": "ok",
+            "status": "executed",
             "data": df,
             "sql": sql,
-            "params": params
+            "params": params,
+            "rows": len(df)
         }
 
     except Exception as e:
-        # ❗ Final hard fallback – never crash UI
+        # ❗ Hard fallback – never crash UI
         log_event("error", {
             "question": question,
             "mill": mill,
@@ -92,5 +95,4 @@ def handle_question(question: str, mill: str = "hastings"):
 
         return {
             "unsupported": True,
-            "message": "This query is not supported yet. We will work on that."
-        }
+            "message": "This query is not suppor
