@@ -6,19 +6,22 @@ Responsibilities:
 - Create SQL Server connection (mill-specific)
 - Fetch schema metadata
 - Provide simple test connectivity
+
+NOTE:
+- Uses pymssql (pure Python, works on Streamlit Cloud & Linux)
+- Avoids pyodbc / unixODBC dependency issues
 """
 
 import os
-import pyodbc
+import pymssql
 from dotenv import load_dotenv
 
-# Load environment variables (.env locally, secrets on Streamlit Cloud)
+# Load environment variables (.env locally, Streamlit secrets in cloud)
 load_dotenv()
 
 DB_SERVER = os.getenv("DB_SERVER")
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
-DB_DRIVER = os.getenv("DB_DRIVER")
 
 # Mill → Database mapping
 MILL_DB_MAP = {
@@ -34,24 +37,21 @@ def get_conn(mill: str):
 
     Raises:
         ValueError: if mill name is invalid
-        pyodbc.Error: if DB connection fails
+        pymssql.Error: if DB connection fails
     """
     mill = mill.lower().strip()
 
     if mill not in MILL_DB_MAP:
         raise ValueError(f"Invalid mill name: {mill}")
 
-    conn_str = (
-        f"DRIVER={{{DB_DRIVER}}};"
-        f"SERVER={DB_SERVER};"
-        f"DATABASE={MILL_DB_MAP[mill]};"
-        f"UID={DB_USER};"
-        f"PWD={DB_PASSWORD};"
-        "TrustServerCertificate=yes;"
-        "Connection Timeout=5;"
+    return pymssql.connect(
+        server=DB_SERVER,
+        user=DB_USER,
+        password=DB_PASSWORD,
+        database=MILL_DB_MAP[mill],
+        login_timeout=5,
+        timeout=10,
     )
-
-    return pyodbc.connect(conn_str)
 
 
 def test_db_connection(mill: str = "hastings"):
@@ -94,10 +94,10 @@ def get_schema_text(table_names, mill: str):
             """
             SELECT COLUMN_NAME, DATA_TYPE
             FROM INFORMATION_SCHEMA.COLUMNS
-            WHERE TABLE_NAME = ?
+            WHERE TABLE_NAME = %s
             ORDER BY ORDINAL_POSITION
             """,
-            table,
+            (table,),
         )
 
         for col, dtype in cursor.fetchall():
