@@ -3,7 +3,7 @@ Query runner with full safety:
 LLM → JSON validation → SQL guard → DB
 
 Also returns:
-- Executed SQL
+- Generated SQL (even if blocked)
 - Parameters
 - Execution confirmation
 (for UI display / SSMS visibility)
@@ -20,21 +20,30 @@ from core.logger import log_event
 def handle_question(question: str, mill: str = "hastings"):
     """
     Full safe pipeline.
-    Never raises uncaught exceptions to UI.
 
-    SUCCESS return:
+    Possible outcomes:
+
+    EXECUTED:
     {
         "status": "executed",
-        "data": DataFrame,
-        "sql": "<executed sql>",
+        "sql": "...",
         "params": [...],
-        "rows": <int>
+        "rows": int,
+        "data": DataFrame
     }
 
-    FAILURE return:
+    GENERATED BUT BLOCKED:
+    {
+        "status": "generated",
+        "sql": "...",
+        "params": [...],
+        "message": "SQL was generated but execution was blocked"
+    }
+
+    UNSUPPORTED:
     {
         "unsupported": True,
-        "message": "This query is not supported yet. We will work on that."
+        "message": "Query could not be understood."
     }
     """
 
@@ -42,32 +51,66 @@ def handle_question(question: str, mill: str = "hastings"):
         # 1️⃣ Fetch schema for LLM
         schema_text = get_schema_text(["AttendanceReport"], mill)
 
-        # 2️⃣ Generate SQL via LLM
+        # 2️⃣ LLM → SQL generation
         llm_result = generate_sql_from_question(question, schema_text)
 
-        # 3️⃣ Validate LLM JSON structure
-        mode = validate_llm_json(llm_result)
-
-        # 🚫 Unsupported query (LLM decision)
-        if mode == "unsupported":
-            log_event("unsupported", {
+        # 🔴 LLM failed to produce structured output
+        if not isinstance(llm_result, dict):
+            log_event("llm_unstructured_output", {
                 "question": question,
-                "mill": mill
+                "mill": mill,
+                "llm_result": str(llm_result)
             })
-            return llm_result
+            return {
+                "unsupported": True,
+                "message": "Query could not be understood."
+            }
 
-        sql = llm_result["sql"]
+        sql = llm_result.get("sql")
         params = llm_result.get("params", [])
 
-        # 4️⃣ SQL safety guard (READ-ONLY, allowed syntax)
+        # 3️⃣ Validate LLM JSON contract
+        mode = validate_llm_json(llm_result)
+
+        # 🟡 SQL GENERATED BUT BLOCKED (DO NOT EXECUTE)
+        if mode == "unsupported" and sql:
+            log_event("sql_generated_but_blocked", {
+                "question": question,
+                "mill": mill,
+                "sql": sql,
+                "params": params
+            })
+
+            return {
+                "status": "generated",
+                "sql": sql,
+                "params": params,
+                "message": "SQL was generated but execution was blocked by safety rules."
+            }
+
+        # 🔴 Fully unsupported (no SQL)
+        if mode == "unsupported":
+            return {
+                "unsupported": True,
+                "message": "This query is not supported yet."
+            }
+
+        # 4️⃣ SQL safety guard (READ-ONLY enforcement)
         validate_sql(sql)
 
         # 5️⃣ Execute SQL on database
+        log_event("sql_execution_started", {
+            "question": question,
+            "mill": mill,
+            "sql": sql,
+            "params": params
+        })
+
         conn = get_conn(mill)
         df = pd.read_sql(sql, conn, params=params)
         conn.close()
 
-        # 6️⃣ Log DB execution (PROOF)
+        # 6️⃣ Confirm execution
         log_event("sql_executed", {
             "question": question,
             "mill": mill,
@@ -76,18 +119,17 @@ def handle_question(question: str, mill: str = "hastings"):
             "rows_returned": len(df)
         })
 
-        # ✅ SUCCESS (this guarantees DB was hit)
         return {
             "status": "executed",
-            "data": df,
             "sql": sql,
             "params": params,
-            "rows": len(df)
+            "rows": len(df),
+            "data": df
         }
 
     except Exception as e:
         # ❗ Hard fallback – never crash UI
-        log_event("error", {
+        log_event("sql_execution_error", {
             "question": question,
             "mill": mill,
             "error": str(e)
@@ -95,5 +137,5 @@ def handle_question(question: str, mill: str = "hastings"):
 
         return {
             "unsupported": True,
-            "message": "This query is not supported yet. We will work on that."
+            "message": "Query execution failed. Please refine the question."
         }
