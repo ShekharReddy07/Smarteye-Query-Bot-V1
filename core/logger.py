@@ -24,3 +24,6 @@ def log_event(event_type: str, payload: dict):
 
     with open(log_file, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry) + "\n")
+
+    print(entry)
+
