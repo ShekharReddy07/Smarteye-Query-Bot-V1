@@ -3,16 +3,16 @@ DB utilities for SmartEye Attendance Bot
 
 Responsibilities:
 - Load environment variables
-- Create SQL Server connection
-- Simple test query execution
+- Create SQL Server connection (mill-specific)
+- Fetch schema metadata
+- Provide simple test connectivity
 """
 
 import os
 import pyodbc
 from dotenv import load_dotenv
-import streamlit as st
 
-# Load .env file
+# Load environment variables (.env locally, secrets on Streamlit Cloud)
 load_dotenv()
 
 DB_SERVER = os.getenv("DB_SERVER")
@@ -27,55 +27,59 @@ MILL_DB_MAP = {
     "india": "Smart_Eye_Jute_STIL_India_Live",
 }
 
+
 def get_conn(mill: str):
     """
-    Returns an active DB connection for a given mill
+    Create and return a SQL Server connection for a given mill.
 
+    Raises:
+        ValueError: if mill name is invalid
+        pyodbc.Error: if DB connection fails
     """
-    mill = mill.lower()
-
-    try:
-        conn = pyodbc.connect(
-            f"DRIVER={{{DB_DRIVER}}};"
-            f"SERVER={DB_SERVER};"
-            f"UID={DB_USER};"
-            f"PWD={DB_PASSWORD};"
-            "TrustServerCertificate=yes;"
-        )
-        return conn
-    except Exception as e:
-        st.error("Database connection failed")
-        st.error(str(e))
-        raise
+    mill = mill.lower().strip()
 
     if mill not in MILL_DB_MAP:
-        raise ValueError("Invalid mill name")
+        raise ValueError(f"Invalid mill name: {mill}")
 
     conn_str = (
         f"DRIVER={{{DB_DRIVER}}};"
         f"SERVER={DB_SERVER};"
         f"DATABASE={MILL_DB_MAP[mill]};"
         f"UID={DB_USER};"
-        f"PWD={DB_PASSWORD}"
+        f"PWD={DB_PASSWORD};"
+        "TrustServerCertificate=yes;"
+        "Connection Timeout=5;"
     )
 
     return pyodbc.connect(conn_str)
 
-def test_db_connection(mill="hastings"):
+
+def test_db_connection(mill: str = "hastings"):
     """
-    Runs a simple test query
+    Tests database connectivity by executing a lightweight query.
+
+    Returns:
+        True if connection and query succeed
     """
     conn = get_conn(mill)
     cursor = conn.cursor()
-    cursor.execute("SELECT TOP 5 * FROM AttendanceReport")
-    rows = cursor.fetchall()
+    cursor.execute("SELECT 1")
+    cursor.fetchone()
     conn.close()
-    return rows
+    return True
 
-def get_schema_text(table_names, mill):
+
+def get_schema_text(table_names, mill: str):
     """
-    Fetch schema of given tables for the selected mill
-    Used by LLM to understand DB structure
+    Fetch schema (column names + datatypes) for given tables.
+    Used by LLM to understand DB structure.
+
+    Args:
+        table_names (list[str]): list of table names
+        mill (str): mill identifier
+
+    Returns:
+        str: formatted schema text
     """
     conn = get_conn(mill)
     cursor = conn.cursor()
@@ -86,12 +90,15 @@ def get_schema_text(table_names, mill):
         lines.append(f"Table: {table}")
         lines.append("Columns:")
 
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT COLUMN_NAME, DATA_TYPE
             FROM INFORMATION_SCHEMA.COLUMNS
             WHERE TABLE_NAME = ?
             ORDER BY ORDINAL_POSITION
-        """, table)
+            """,
+            table,
+        )
 
         for col, dtype in cursor.fetchall():
             lines.append(f"- {col} ({dtype})")
@@ -100,4 +107,6 @@ def get_schema_text(table_names, mill):
 
     conn.close()
     return "\n".join(lines)
+
+
 
