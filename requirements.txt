@@ -4,3 +4,5 @@ pyodbc
 python-dotenv
 openai
 fastapi
+openpyxl
+
