@@ -11,7 +11,8 @@ from datetime import date
 # BACKEND API CONFIGURATION
 # =================================================
 
-BACKEND_API_URL = "http://localhost:8000"
+BACKEND_API_URL = "https://northbound-allie-silvery.ngrok-free.dev"
+
 
 # =================================================
 # PAGE CONFIGURATION
