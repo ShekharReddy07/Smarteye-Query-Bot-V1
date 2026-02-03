@@ -49,7 +49,7 @@ with st.sidebar:
 
     mill = st.selectbox(
         "Select Mill",
-        ["hastings", "gondalpara", "india"],
+        ["SHJM", "SGJM", "MIJM"],
         index=0
     )
 
@@ -64,10 +64,10 @@ if st.session_state.page == "chat":
 
     st.markdown("**Safe Examples:**")
     st.markdown("- How many outsiders today?")
-    st.markdown("- Show attendance of nz1073")
+    st.markdown("- Show attendance of nz1073 between 10/01/2025 to 31/12/2025")
     st.markdown("- How many double duty workers today?")
     st.markdown("- How many overtime workers today?")
-    st.markdown("- Show overtime in spinning department")
+    st.markdown("- Show overtime between 10/12/2025 to 31/12/2025")
 
     question = st.chat_input("Ask SmartEye related question...")
 
