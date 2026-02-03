@@ -45,6 +45,21 @@ from core.logger import log_event
 # MAIN ENTRY POINT
 # ============================================================
 
+def make_json_safe(obj):
+    """
+    Recursively convert numpy / pandas types
+    into native Python JSON-safe types.
+    """
+    if isinstance(obj, dict):
+        return {k: make_json_safe(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [make_json_safe(v) for v in obj]
+    elif hasattr(obj, "item"):  # numpy scalar
+        return obj.item()
+    else:
+        return obj
+
+
 def handle_question(question: str, mill: str = "hastings"):
     """
     Handles a user question end-to-end in a SAFE manner.
@@ -209,13 +224,25 @@ def handle_question(question: str, mill: str = "hastings"):
         )
 
         # Return successful response
+        # return {
+        #     "status": "executed",
+        #     "sql": sql,
+        #     "params": params,
+        #     "rows": len(df),
+        #     "data": df
+        # }
+        data = df.to_dict(orient="records")
+        data = make_json_safe(data)
+
         return {
             "status": "executed",
             "sql": sql,
             "params": params,
-            "rows": len(df),
-            "data": df
+            "rows": int(len(df)),
+            "data": data
         }
+
+
 
     except Exception as e:
         # ====================================================
