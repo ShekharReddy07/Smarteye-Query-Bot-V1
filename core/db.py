@@ -35,9 +35,9 @@ DB_DRIVER = os.getenv("DB_DRIVER")
 # Ensures user cannot connect to arbitrary DBs
 # -------------------------
 MILL_DB_MAP = {
-    "hastings": "Smart_Eye_Jute_STIL_Hastings_Live",
-    "gondalpara": "Smart_Eye_Jute_STIL_Gondalpara_Live",
-    "india": "Smart_Eye_Jute_STIL_India_Live",
+    "shjm": "Smart_Eye_Jute_STIL_Hastings_Live",
+    "sgjm": "Smart_Eye_Jute_STIL_Gondalpara_Live",
+    "mijm": "Smart_Eye_Jute_STIL_India_Live",
 }
 
 # ============================================================
@@ -78,7 +78,7 @@ def get_conn(mill: str):
 # CONNECTION TESTING
 # ============================================================
 
-def test_db_connection(mill: str = "hastings"):
+def test_db_connection(mill: str = "SHJM"):
     """
     Tests DB connectivity using a lightweight query.
     Used during app startup to fail fast if DB is down.

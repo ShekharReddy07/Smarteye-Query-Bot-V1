@@ -49,7 +49,7 @@ with st.sidebar:
 
     mill = st.selectbox(
         "Select Mill",
-        ["SHJM", "SGJM", "MIJM"],
+        ["shjm", "sgjm", "mijm"],
         index=0
     )
 
