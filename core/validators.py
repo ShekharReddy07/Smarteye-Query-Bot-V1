@@ -1,11 +1,15 @@
 """
-Validators for LLM output
-Ensures strict JSON contract
+Validators
+Ensures LLM output strictly follows expected JSON format
 """
 
 def validate_llm_json(obj: dict):
     """
-    Validates LLM JSON output structure
+    Validates LLM output structure.
+
+    Returns:
+    - "sql" if executable
+    - "unsupported" if blocked
     """
 
     if not isinstance(obj, dict):

@@ -1,18 +1,18 @@
 """
 SQL Guard
-Ensures only safe, read-only SQL queries are executed
+Ensures ONLY safe, read-only SQL runs
 """
 
 import re
 
-# Block all dangerous SQL operations
+# Keywords that can modify or destroy data
 FORBIDDEN_KEYWORDS = [
     "insert", "update", "delete", "drop",
     "alter", "create", "merge", "exec",
     "truncate", "grant", "revoke"
 ]
 
-# Only this table is allowed
+# Restrict access to known table only
 ALLOWED_TABLES = {"attendancereport"}
 
 def validate_sql(sql: str):
@@ -26,20 +26,20 @@ def validate_sql(sql: str):
 
     sql_clean = sql.strip().lower()
 
-    # 1️⃣ Must start with SELECT
+    # Must be SELECT
     if not sql_clean.startswith("select"):
         raise ValueError("Only SELECT queries are allowed")
 
-    # 2️⃣ No semicolons (prevents multi-statement)
+    # Block multi-statement queries
     if ";" in sql_clean:
         raise ValueError("Semicolons are not allowed")
 
-    # 3️⃣ Block forbidden keywords
+    # Block dangerous keywords
     for keyword in FORBIDDEN_KEYWORDS:
         if re.search(rf"\b{keyword}\b", sql_clean):
             raise ValueError(f"Forbidden SQL keyword detected: {keyword}")
 
-    # 4️⃣ Enforce allowed table(s)
+    # Enforce allowed tables only
     tables = re.findall(r"from\s+([a-zA-Z0-9_]+)", sql_clean)
     for table in tables:
         if table not in ALLOWED_TABLES:
