@@ -13,6 +13,17 @@ from datetime import date
 
 BACKEND_API_URL = "https://northbound-allie-silvery.ngrok-free.dev"
 
+# =================================================
+# MILL DISPLAY → BACKEND MAPPING
+# =================================================
+
+MILL_MAP = {
+    "SHJM": "hastings",
+    "SGJM": "gondalpara",
+    "MIJM": "india"
+}
+
+
 
 # =================================================
 # PAGE CONFIGURATION
@@ -47,11 +58,15 @@ with st.sidebar:
     st.markdown("---")
     st.header("Mill Selection")
 
-    mill = st.selectbox(
+    mill_display = st.selectbox(
         "Select Mill",
-        ["shjm", "sgjm", "mijm"],
+        ["SHJM", "SGJM", "MIJM"],
         index=0
     )
+
+    # Convert UI value → backend value
+    mill = MILL_MAP[mill_display]
+
 
 # =================================================
 # PAGE 1 — SMART QUERY BOT (LLM-BASED)
