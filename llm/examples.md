@@ -1,3 +1,34 @@
+## IMPORTANT AGGREGATION RULES (MANDATORY)
+
+The following rules MUST ALWAYS be followed:
+
+1. For OUTSIDER attendance:
+   - Presence is calculated using:
+     SUM(WORK_HR) / 8
+   - NEVER use COUNT(*)
+
+2. For DOUBLE DUTY attendance:
+   - Presence is calculated using:
+     SUM(WORK_HR) / 8
+   - NEVER use COUNT(*)
+
+3. For OVERTIME attendance:
+   - Presence is calculated using:
+     SUM(WORK_HR) / 8
+   - NEVER use COUNT(*)
+
+4. COUNT(*) is ONLY allowed when explicitly counting records
+   (example: "how many records", "how many rows").
+
+5. When user says:
+   - "how many outsiders"
+   - "how many double duty"
+   - "how many overtime"
+
+   It ALWAYS means:
+   SUM(WORK_HR) / 8
+
+
 ### Example 1
 User: show attendance of nz1073
 
@@ -161,6 +192,15 @@ Output:
   "params": ["DD", 1]
 }
 
+### Example: double duty present today
+User: how many double duty workers are present today
+
+Output:
+{
+  "sql": "SELECT SUM(WORK_HR)/8 AS Double_Duty_Count FROM AttendanceReport WHERE Work_Type IN (?) AND WDate = CAST(GETDATE()-1 AS DATE)",
+  "params": ["DD"]
+}
+
 ---
 
 ### Example: Display overtime attendance
@@ -212,7 +252,7 @@ User: how many overtime are present
 
 Output:
 {
-  "sql": "SELECT COUNT(*) AS Overtime_Count FROM AttendanceReport WHERE Work_Type IN (?, ?)",
+  "sql": "SELECT SUM(WORK_HR)/8 AS Overtime_Count FROM AttendanceReport WHERE Work_Type IN (?, ?)",
   "params": ["SO", "WO"]
 }
 
@@ -223,7 +263,7 @@ User: how many overtime were present yesterday in jute department
 
 Output:
 {
-  "sql": "SELECT COUNT(*) AS Overtime_Count FROM AttendanceReport WHERE Work_Type IN (?, ?) AND Dept_Code = ? AND WDate = CAST(GETDATE()-1 AS DATE)",
+  "sql": "SELECT SUM(WORK_HR)/8 AS Overtime_Count FROM AttendanceReport WHERE Work_Type IN (?, ?) AND Dept_Code = ? AND WDate = CAST(GETDATE()-1 AS DATE)",
   "params": ["SO", "WO", 1]
 }
 

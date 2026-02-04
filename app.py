@@ -11,19 +11,17 @@ from datetime import date
 # BACKEND API CONFIGURATION
 # =================================================
 
-BACKEND_API_URL = "https://northbound-allie-silvery.ngrok-free.dev"
+BACKEND_API_URL = "https://northbound-allie-silvery.ngrok-free.dev".strip()
 
 # =================================================
 # MILL DISPLAY → BACKEND MAPPING
 # =================================================
 
 MILL_MAP = {
-    "SHJM": "hastings",
-    "SGJM": "gondalpara",
-    "MIJM": "india"
+    "SHJM": "shjm",
+    "SGJM": "sgjm",
+    "MIJM": "mijm"
 }
-
-
 
 # =================================================
 # PAGE CONFIGURATION
@@ -58,15 +56,15 @@ with st.sidebar:
     st.markdown("---")
     st.header("Mill Selection")
 
+    # ✅ UI DISPLAY VALUES
     mill_display = st.selectbox(
         "Select Mill",
-        ["SHJM", "SGJM", "MIJM"],
+        list(MILL_MAP.keys()),
         index=0
     )
 
-    # Convert UI value → backend value
+    # ✅ BACKEND VALUE
     mill = MILL_MAP[mill_display]
-
 
 # =================================================
 # PAGE 1 — SMART QUERY BOT (LLM-BASED)
@@ -74,7 +72,7 @@ with st.sidebar:
 
 if st.session_state.page == "chat":
 
-    st.title("🤖 SmartEye Query Bot")
+    st.title("SmartEye Query Bot")
     st.caption("AI-powered attendance query assistant (SQL-safe & auditable)")
 
     st.markdown("**Safe Examples:**")
@@ -92,14 +90,11 @@ if st.session_state.page == "chat":
                 f"{BACKEND_API_URL}/query",
                 json={
                     "question": question,
-                    "mill": mill
+                    "mill": mill  # ✅ mapped value
                 },
                 timeout=60
             )
 
-        # -------------------------------
-        # HTTP-level error handling
-        # -------------------------------
         if response.status_code != 200:
             st.error("Backend error occurred")
             st.code(response.text)
@@ -107,9 +102,6 @@ if st.session_state.page == "chat":
 
         result = response.json()
 
-        # -------------------------------
-        # CASE 1: SQL EXECUTED
-        # -------------------------------
         if result.get("status") == "executed":
             st.success("SQL executed successfully")
 
@@ -125,22 +117,9 @@ if st.session_state.page == "chat":
             df = pd.DataFrame(result["data"])
             st.dataframe(df, use_container_width=True)
 
-        # -------------------------------
-        # CASE 2: SQL GENERATED BUT BLOCKED
-        # -------------------------------
         elif result.get("status") == "generated":
             st.warning("SQL was generated but execution was blocked by safety rules.")
 
-            with st.expander("Generated SQL (NOT executed)"):
-                st.code(result["sql"], language="sql")
-
-                if result.get("params"):
-                    st.markdown("Parameters:")
-                    st.code(result["params"])
-
-        # -------------------------------
-        # CASE 3: UNSUPPORTED QUERY
-        # -------------------------------
         elif result.get("unsupported"):
             st.warning(result.get("message", "Query not supported"))
 
@@ -159,30 +138,20 @@ elif st.session_state.page == "month_attendance":
     col1, col2 = st.columns(2)
 
     with col1:
-        start_date = st.date_input(
-            "From Date",
-            value=date(2025, 1, 1)
-        )
+        start_date = st.date_input("From Date", value=date(2025, 1, 1))
 
     with col2:
-        end_date = st.date_input(
-            "To Date",
-            value=date(2025, 12, 31)
-        )
+        end_date = st.date_input("To Date", value=date(2025, 12, 31))
 
     if start_date > end_date:
         st.error("Start date cannot be after end date")
         st.stop()
 
-    # =================================================
-    # FETCH EMPLOYEES
-    # =================================================
-
     with st.spinner("Fetching employees..."):
         response = requests.post(
             f"{BACKEND_API_URL}/employees",
             json={
-                "mill": mill,
+                "mill": mill,  # ✅ mapped value
                 "start_date": start_date.isoformat(),
                 "end_date": end_date.isoformat()
             },
@@ -212,16 +181,12 @@ elif st.session_state.page == "month_attendance":
 
     selected_ecode = employee_map[selected_employee]
 
-    # =================================================
-    # FETCH MONTH-WISE ATTENDANCE
-    # =================================================
-
     if st.button("Show Month-wise Attendance"):
         with st.spinner("Calculating attendance..."):
             response = requests.post(
                 f"{BACKEND_API_URL}/monthwise-attendance",
                 json={
-                    "mill": mill,
+                    "mill": mill,  # ✅ mapped value
                     "start_date": start_date.isoformat(),
                     "end_date": end_date.isoformat(),
                     "ecode": selected_ecode
@@ -236,15 +201,8 @@ elif st.session_state.page == "month_attendance":
 
         data = response.json()
 
-        if not data:
-            st.warning("No attendance data found.")
-            st.stop()
-
         df = pd.DataFrame(data)
-
-        df["Month"] = df["mon"].apply(
-            lambda x: date(1900, x, 1).strftime("%B")
-        )
+        df["Month"] = df["mon"].apply(lambda x: date(1900, x, 1).strftime("%B"))
 
         df = df.rename(columns={
             "work_days": "Total Working Days",
@@ -252,8 +210,4 @@ elif st.session_state.page == "month_attendance":
         })
 
         st.success("Month-wise attendance calculated")
-
-        st.dataframe(
-            df[["Month", "Total Working Days", "Attendance Days"]],
-            use_container_width=True
-        )
+        st.dataframe(df[["Month", "Total Working Days", "Attendance Days"]], use_container_width=True)
