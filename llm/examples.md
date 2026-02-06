@@ -150,58 +150,50 @@ Output:
 
 ---
 
-### Example: Display double duty attendance
+Example: Display double duty attendance (LIST)
+
 User: show double duty attendance
 
-Output:
 {
-  "sql": "SELECT * FROM AttendanceReport WHERE Work_Type = ?",
-  "params": ["DD"]
+  "sql": "SELECT wdate, ECode FROM AttendanceReport WHERE Work_Type NOT IN (?, ?) GROUP BY WDate, ECode HAVING SUM(Work_HR) > ? AND SUM(Work_HR) <= ?",
+  "params": ["SO", "WO", 8, 16]
 }
 
----
+Example: Display double duty present yesterday
 
-### Example: Display double duty present yesterday
 User: show double duty present yesterday
 
-Output:
 {
-  "sql": "SELECT * FROM AttendanceReport WHERE Work_Type = ? AND WDate = CAST(GETDATE()-1 AS DATE)",
-  "params": ["DD"]
+  "sql": "SELECT wdate, ECode FROM AttendanceReport WHERE Work_Type NOT IN (?, ?) AND WDate = CAST(GETDATE()-1 AS DATE) GROUP BY WDate, ECode HAVING SUM(Work_HR) > ? AND SUM(Work_HR) <= ?",
+  "params": ["SO", "WO", 8, 16]
 }
 
----
+Example: Display double duty between dates
 
-### Example: Display double duty between dates
 User: show double duty between 10/12/2025 to 31/12/2025
 
-Output:
 {
-  "sql": "SELECT * FROM AttendanceReport WHERE Work_Type = ? AND WDate BETWEEN ? AND ?",
-  "params": ["DD", "2025-12-10", "2025-12-31"]
+  "sql": "SELECT wdate, ECode FROM AttendanceReport WHERE Work_Type NOT IN (?, ?) AND WDate BETWEEN ? AND ? GROUP BY WDate, ECode HAVING SUM(Work_HR) > ? AND SUM(Work_HR) <= ?",
+  "params": ["SO", "WO", "2025-12-10", "2025-12-31", 8, 16]
 }
 
----
+Example: Display double duty in jute department
 
-### Example: Display double duty in jute department
 User: show double duty in jute department
 
-Output:
 {
-  "sql": "SELECT * FROM AttendanceReport WHERE Work_Type = ? AND Dept_Code = ?",
-  "params": ["DD", 1]
+  "sql": "SELECT wdate, ECode FROM AttendanceReport WHERE Work_Type NOT IN (?, ?) AND Dept_Code = ? GROUP BY WDate, ECode HAVING SUM(Work_HR) > ? AND SUM(Work_HR) <= ?",
+  "params": ["SO", "WO", 1, 8, 16]
 }
 
-### Example: double duty present today
+✅ Example: Count double duty workers today (FIXED)
+
 User: how many double duty workers are present today
 
-Output:
 {
-  "sql": "SELECT SUM(WORK_HR)/8 AS Double_Duty_Count FROM AttendanceReport WHERE Work_Type IN (?) AND WDate = CAST(GETDATE()-1 AS DATE)",
-  "params": ["DD"]
+  "sql": "SELECT COUNT(*) AS Double_Duty_Count FROM (SELECT WDate, ECode FROM AttendanceReport WHERE Work_Type NOT IN (?, ?) AND WDate = CAST(GETDATE() AS DATE) GROUP BY WDate, ECode HAVING SUM(Work_HR) > ? AND SUM(Work_HR) <= ?) t",
+  "params": ["SO", "WO", 8, 16]
 }
-
----
 
 ### Example: Display overtime attendance
 User: show overtime attendance

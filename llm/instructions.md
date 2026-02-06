@@ -171,16 +171,46 @@ DOUBLE DUTY (DD) LOGIC (MANDATORY)
 --------------------------------------------------
 
 Definition:
-- Double duty is identified ONLY by Work_Type = 'DD'
+- Double Duty is a DERIVED condition based on total working hours per employee per day.
+- Double Duty is NOT identified using Work_Type = 'DD'.
+
+Business Rule (AUTHORITATIVE):
+- A worker is considered Double Duty if:
+  SUM(Work_HR) > 8 AND SUM(Work_HR) <= 16
+
+Mandatory Filters:
+- Exclude overtime and weekly off records:
+  Work_Type NOT IN ('WO', 'SO')
+
+Grouping Rules (NON-NEGOTIABLE):
+- Grouping MUST be done by:
+  - WDate
+  - ECode
 
 Behavior:
-- "count", "how many", "total" → SELECT COUNT(*)
-- "show", "list", "display" → SELECT *
+- If user asks "show", "list", or "display" double duty:
+  → Return grouped rows at (WDate, ECode) level
 
-Rules:
-- Always filter using Work_Type = ?
-- Param must be "DD"
-- Never infer DD from any other column
+- If user asks "count", "how many", or "total" double duty:
+  → Return COUNT(*) over grouped results
+
+Query Construction Rules:
+- Double Duty MUST be derived using HAVING clause
+- Hour thresholds MUST be applied only on SUM(Work_HR)
+- NEVER use Work_Type = 'DD'
+- NEVER calculate Double Duty using SUM(Work_HR) / 8
+- NEVER infer Double Duty from labels or categories
+
+Correct HAVING condition:
+- HAVING SUM(Work_HR) > 8 AND SUM(Work_HR) <= 16
+
+Safety Constraints:
+- Queries must be SELECT-only
+- Queries must be parameterized
+- Single-statement SQL only
+
+If any rule above cannot be satisfied:
+→ Return FAIL-SAFE JSON
 
 --------------------------------------------------
 OUTSIDER / VOUCHER MAN-DAY LOGIC (MANDATORY)
